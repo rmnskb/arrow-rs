@@ -179,16 +179,14 @@ impl ReadPlanBuilder {
 
         self.selection = match self.selection.take() {
             Some(selection) => {
-                let selectors: Vec<RowSelector> = Vec::from(selection);
-                let boolean_mask = boolean_mask_from_selectors(&selectors);
-                let boolean_mask = raw_buffer & &boolean_mask;
+                let boolean_mask = raw_buffer & &boolean_mask_from_selectors(&Vec::from(selection));
 
-                Some(RowSelection::from_filters(&vec![BooleanArray::new(
+                Some(RowSelection::from_filters(&[BooleanArray::new(
                     boolean_mask,
                     None,
                 )]))
             }
-            None => Some(RowSelection::from_filters(&vec![BooleanArray::new(
+            None => Some(RowSelection::from_filters(&[BooleanArray::new(
                 raw_buffer.clone(),
                 None,
             )])),
