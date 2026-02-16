@@ -923,7 +923,7 @@ impl RowSelectionCursor {
     }
 }
 
-fn boolean_mask_from_selectors(selectors: &[RowSelector]) -> BooleanBuffer {
+pub(crate) fn boolean_mask_from_selectors(selectors: &[RowSelector]) -> BooleanBuffer {
     let total_rows: usize = selectors.iter().map(|s| s.row_count).sum();
     let mut builder = BooleanBufferBuilder::new(total_rows);
     for selector in selectors {

@@ -21,11 +21,13 @@
 use crate::arrow::array_reader::ArrayReader;
 use crate::arrow::arrow_reader::selection::RowSelectionPolicy;
 use crate::arrow::arrow_reader::selection::RowSelectionStrategy;
+use crate::arrow::arrow_reader::selection::boolean_mask_from_selectors;
 use crate::arrow::arrow_reader::{
     ArrowPredicate, ParquetRecordBatchReader, RowSelection, RowSelectionCursor, RowSelector,
 };
 use crate::errors::{ParquetError, Result};
 use arrow_array::Array;
+use arrow_array::{BooleanArray, builder::BooleanBuilder};
 use arrow_select::filter::prep_null_mask_filter;
 use std::collections::VecDeque;
 
@@ -167,11 +169,31 @@ impl ReadPlanBuilder {
             };
         }
 
-        let raw = RowSelection::from_filters(&filters);
+        let mut bool_builder = BooleanBuilder::new();
+        for filter in &filters {
+            bool_builder.append_array(filter);
+        }
+        let combined_filters = bool_builder.finish();
+
+        let raw_buffer = combined_filters.values();
+
         self.selection = match self.selection.take() {
-            Some(selection) => Some(selection.and_then(&raw)),
-            None => Some(raw),
+            Some(selection) => {
+                let selectors: Vec<RowSelector> = Vec::from(selection);
+                let boolean_mask = boolean_mask_from_selectors(&selectors);
+                let boolean_mask = raw_buffer & &boolean_mask;
+
+                Some(RowSelection::from_filters(&vec![BooleanArray::new(
+                    boolean_mask,
+                    None,
+                )]))
+            }
+            None => Some(RowSelection::from_filters(&vec![BooleanArray::new(
+                raw_buffer.clone(),
+                None,
+            )])),
         };
+
         Ok(self)
     }
 
